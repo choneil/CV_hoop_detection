@@ -1,6 +1,7 @@
 import cv2 as cv
 import numpy as np
 import math
+from sortlines import sort_lines
 
 vid = cv.VideoCapture('IMG_3936.mov')
 
@@ -10,7 +11,7 @@ height = int(vid.get(cv.CAP_PROP_FRAME_HEIGHT))
 
 #Variables to resize video frame with the correct ratio
 ratio = width/height
-new_h = 540
+new_h = 1080
 new_w = int(new_h*ratio) 
 
 while True:
@@ -19,8 +20,7 @@ while True:
     ret, frame = vid.read()
     
     #Resize frame while maintaining ratio
-    small_frame = cv.resize(frame,(new_w,new_h))
-
+    small_frame = cv.resize(frame,(1080,920))
     #Convert color to HSV 
     hsv = cv.cvtColor(small_frame, cv.COLOR_BGR2HSV)
 
@@ -55,14 +55,20 @@ while True:
     kernel = cv.getStructuringElement(cv.MORPH_RECT, (9,9))
     dilate = cv.morphologyEx(blur, cv.MORPH_DILATE, kernel)
     
-    # get absolute difference between dilate and thresh
+    # get absolute difference between dilate and the blurred threshold
+    # got better results for my lines doing this rather than just the threshold
     diff = cv.absdiff(dilate, blur)
 
-    #more filtering
-    edges = 255 - diff 
+    #invert diff
+    edges = 255 - diff
+
+    #canny edges of the diff 
     can = cv.Canny(diff,100,255,None,3,False)
+
+    #convert the inverted diff to 'color'
     can_c = cv.cvtColor(edges, cv.COLOR_GRAY2BGR)
-   
+    
+    #leftover from, useless
     kernel = np.ones((5,5), np.uint8)
     
     dst = cv.Canny(blur, 10, 200, None, 3)
@@ -85,58 +91,74 @@ while True:
             pt2 = (int(x0 - 1000*(-b)), int(y0 - 1000*(a)))
             cv.line(cdst, pt1, pt2, (0,0,255), 3, cv.LINE_AA)
 
+#using predicted hough lines here because it seemed like the results were more useful for what I was trying to do
+#it was giving more results we could at least filter down to something close to accurate
+
     
     linesP = cv.HoughLinesP(can, 1, np.pi / 180, 10, None, 100, 20)
-    print(linesP)
-    #segmented=segment_by_angle_kmeans(linesP)
-    #print(linesP)
-    #print(segmented)
+    #create an empty array for horizontal both horizontal and vertical lines
+    l_h=[]
+    l_v=[]
+
+    
     if linesP is not None:
         for i in range(0, len(linesP)):
+
+
             l = linesP[i][0]
-            cv.line(cdstP, (l[0], l[1]), (l[2], l[3]), (0,255,150), 3, cv.FILLED)
-            cv.circle(cdstP,(l[0],l[1]), 1,(255,0,0))
-            cv.putText(cdstP,(str(l) + ': ' + str(l[0]) + ',' + str(l[1])), (l[0]+5,l[1]-5),0,.25,(255,0,0))
-            cv.circle(cdstP,(l[2],l[3]), 1, (255,0,0))  
-            cv.putText(cdstP,(str(i) + ': ' + str(l[2]) + ',' + str(l[3])), (l[2]+5,l[3]-5),0,.25,(255,0,0))
+            cv.line(cdstP,(l[0],l[1]),(l[2],l[3]),(0,0,255),3,cv.FILLED)
+            dxdy =abs((l[2]-l[0])/(l[3]-l[1]+.001))
+            
+            #2d array new_l with dxdy defined by x2-x1/y2-y1. .001 added to denominator to prevent division by zero
+            #will clean up some of the slop like that .001 as we go
+            new_l=[[dxdy],[l[0],l[1],l[2],l[3]]]
+            print(new_l)
+           
+            #append line into appropriate array
+            if dxdy>1:
+                l_h.append(new_l)
+            else:
+                l_v.append(new_l)
     
     
-    
+    print(l_h)
+    for i in range(0,len(l_h)-1):         
+        if(l_h[i][0][0]>l_h[i+1][0][0]):
+            
+            print(l_h[i])
+            l2=l_h[i+1]
+            l1=l_h[i]
+            l_h[i]=l2
+            l_h[i+1]=l1
+        h = l_h[i]
+        #print('h',h)
+        cv.line(cdstP, (int(h[1][0]), int(h[1][1])), (int(h[1][2]), int(h[1][3])), (0,255,0), 3, cv.FILLED)
+        #cv.circle(cdstP,(l[0],l[1]), 1,(255,0,0))
+        #cv.putText(cdstP,(str(l) + ': ' + str(l[0]) + ',' + str(l[1])), (l[0]+5,l[1]-5),0,.25,(255,0,0))
+        #cv.circle(cdstP,(l[2],l[3]), 1, (255,0,0))  
+        #cv.putText(cdstP,(str(i) + ': ' + str(l[2]) + ',' + str(l[3])), (l[2]+5,l[3]-5),0,.25,(255,0,0))        
+    sort_lines(l_v)
+    for i in range(0,len(l_v)):
+        v=l_v[i]
+        cv.line(cdstP, (int(v[1][0]), int(v[1][1])), (int(v[1][2]), int(v[1][3])), (255,0,0), 3, cv.FILLED)
    
     res = cv.bitwise_and(small_frame,small_frame,mask=mask_all)
-    #background = cv.bitwise_and(gray,gray,mask=inv)
+    while True:
 
-    #background = np.stack((background,)*3,axis=-1)
-
-    #vid_ca = cv.add(res,background)
-    
-    #canny = cv.Canny(mask_all, 10, 70)
-    #ret, can = cv.threshold(canny, 70, 255, cv.THRESH_BINARY)
-    #can = np.stack((can,)*3,axis=-1)
-    #new = cv.add(can, background)
-   
-    
-    
-        
-        
-        
-    numpy_horizontal_concat1 = np.concatenate((cdst,cdstP), axis=1)
-    numpy_horizontal_concat2 = np.concatenate((small_frame,can_c),axis=1)
-    numpy_vertical_concat = np.concatenate((numpy_horizontal_concat1, numpy_horizontal_concat2),axis=0)
-    cv.imshow('Hough Lines, Hough Predictions, Original, Filtered', numpy_vertical_concat)
+        cv.imshow('cdstP',cdstP)   
+    #numpy_horizontal_concat1 = np.concatenate((cdst,cdstP), axis=1)
+    #numpy_horizontal_concat2 = np.concatenate((small_frame,can_c),axis=1)
+    #numpy_vertical_concat = np.concatenate((numpy_horizontal_concat1, numpy_horizontal_concat2),axis=0)
+    #cv.imshow('Hough Lines, Hough Predictions, Original, Filtered', numpy_vertical_concat)
     #cv.imshow('predict',cdstP)
     #cv.imshow('hough',cdst)
     #cv.imshow('mask', edges)
     #cv.imshow('canny',can)
     #cv.imshow('blur',blur)
 
-    if cv.waitKey(1) == ord('q'):
-        break
-#cv.imshow('mak',canny)
-    #cv.imshow('bonk',inv)
-    #cv.imshow('clonk',vid_ca)
-    #cv.imshow('chonk', background)
-    #cv.imshow('sponk', mask_all)
+        if cv.waitKey(1) == ord('q'):
+            break
+   
 
 
     
