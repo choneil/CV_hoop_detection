@@ -2,6 +2,7 @@ import cv2 as cv
 import numpy as np
 import math
 from sortlines import sort_lines
+from grouplines import group_lines
 
 vid = cv.VideoCapture('IMG_3936.mov')
 
@@ -11,7 +12,7 @@ height = int(vid.get(cv.CAP_PROP_FRAME_HEIGHT))
 
 #Variables to resize video frame with the correct ratio
 ratio = width/height
-new_h = 1080
+new_h = 720
 new_w = int(new_h*ratio) 
 
 while True:
@@ -92,7 +93,7 @@ while True:
             
             #multidimensional array new_l with dxdy defined by x2-x1/y2-y1. .001 added to denominator to prevent division by zero
             #will clean up some of the slop like that .001 as we go
-            new_l=[[dxdy],[l[0],l[1],l[2],l[3]]]
+            new_l=[dxdy,l[0],l[1],l[2],l[3]]
            
             #append line into appropriate array
             if dxdy>1:
@@ -103,19 +104,38 @@ while True:
     #sort lines function returns the lines array sent as [[slope],[x1,y1,x2,y2]] sorted in ascending order along the absolute value of the slope.
     #sort lines, horizontal lines
     l_h = sort_lines(l_h)
+    filtered_h = group_lines(l_h,2)
+    print(l_h)
     for i in range(0,len(l_h)-1):         
         h=l_h[i]
-        
+        print(h)
         #add lines to the cdstP image
-        cv.line(cdstP, (int(h[1][0]), int(h[1][1])), (int(h[1][2]), int(h[1][3])), (0,255,0), 1, cv.LINE_AA)
+        cv.line(cdstP, (int(h[1]), int(h[2])), (int(h[3]), int(h[4])), (0,255,0), 1, cv.LINE_AA)
                 
     #same as above for the vertical lines
     l_v = sort_lines(l_v)
+    filtered_v = group_lines(l_v,1)
+    #for i in range(0,len(l_v)):
+        #v=l_v[i]
+        #cv.line(cdstP, (int(v[1]), int(v[2])), (int(v[3]), int(v[4])), (255,0,0), 1, cv.LINE_AA)
+   
+    for i in range(0,len(filtered_h)-1):         
+        h=filtered_h[i]
+        pt1 = [int(h[1]-1000*h[0]),int(h[2]-1000/h[0])]
+        pt2 = [int(h[1]+1000*h[0]),int(h[2]+1000/h[0])]
+        #add lines to the cdstP image
+        cv.line(cdstP, pt1, pt2, (0,255,0), 1, cv.LINE_AA)
+                
+    #same as above for the vertical lines
+    l_v = sort_lines(l_v)
+    filtered_v = group_lines(l_v,1)
+    print(filtered_v)
     for i in range(0,len(l_v)):
-        v=l_v[i]
-        cv.line(cdstP, (int(v[1][0]), int(v[1][1])), (int(v[1][2]), int(v[1][3])), (255,0,0), 1, cv.LINE_AA)
-   
-   
+        v=filtered_v[i]
+        pt1 = [int(v[1]-1000*v[0]),int(v[2]-1000/h[0])]
+        pt2 = [int(v[1]+1000*v[0]),int(v[2]+1000/h[0])]
+        #add lines to the cdstP image
+        cv.line(cdstP, pt1, pt2, (0,0,255), 1, cv.LINE_AA)
     while True:
         
         cv.imshow('cdstP',cdstP)   
