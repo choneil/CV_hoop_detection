@@ -12,7 +12,7 @@ height = int(vid.get(cv.CAP_PROP_FRAME_HEIGHT))
 
 #Variables to resize video frame with the correct ratio
 ratio = width/height
-new_h = 720
+new_h = 1080
 new_w = int(new_h*ratio) 
 
 while True:
@@ -76,7 +76,7 @@ while True:
     
     #using predicted hough lines here because it seemed like the results were more useful for what I was trying to do
     #it was giving more results we could at least filter down to something close to accurate    
-    linesP = cv.HoughLinesP(can, 1, np.pi / 180, 10, None, 100, 20)
+    linesP = cv.HoughLinesP(can, 1, np.pi / 180, 50, None, 150, 20)
     
     #create an empty array for horizontal both horizontal and vertical lines
     l_h=[]
@@ -89,57 +89,72 @@ while True:
 
             l = linesP[i][0]
             
-            dxdy =abs((l[2]-l[0])/(l[3]-l[1]+.001))
-            
+            dxdy =(l[2]-l[0])/(l[3]-l[1]+.001)
+            dydx =(l[3]-l[1])/(l[2]-l[0]+.001)
             #multidimensional array new_l with dxdy defined by x2-x1/y2-y1. .001 added to denominator to prevent division by zero
             #will clean up some of the slop like that .001 as we go
-            new_l=[dxdy,l[0],l[1],l[2],l[3]]
-           
+            
+
             #append line into appropriate array
-            if dxdy>1:
+            if abs(dxdy)>1:
+                new_l=[dxdy,l[0],l[1],l[2],l[3]]
                 l_h.append(new_l)
             else:
+                new_l=[dxdy,l[0],l[1],l[2],l[3]]
                 l_v.append(new_l)
     
     #sort lines function returns the lines array sent as [[slope],[x1,y1,x2,y2]] sorted in ascending order along the absolute value of the slope.
     #sort lines, horizontal lines
-    l_h = sort_lines(l_h)
-    filtered_h = group_lines(l_h,2)
-    print(l_h)
+    #l_h = sort_lines(l_h)
+    #filtered_h = group_lines(l_h,2)
     for i in range(0,len(l_h)-1):         
         h=l_h[i]
-        print(h)
+        
         #add lines to the cdstP image
-        cv.line(cdstP, (int(h[1]), int(h[2])), (int(h[3]), int(h[4])), (0,255,0), 1, cv.LINE_AA)
-                
+        cv.line(cdstP, (int(h[1]), int(h[2])), (int(h[3]), int(h[4])), (255,0,255), 1, cv.LINE_AA)
+           
     #same as above for the vertical lines
-    l_v = sort_lines(l_v)
-    filtered_v = group_lines(l_v,1)
+  
     #for i in range(0,len(l_v)):
         #v=l_v[i]
         #cv.line(cdstP, (int(v[1]), int(v[2])), (int(v[3]), int(v[4])), (255,0,0), 1, cv.LINE_AA)
    
-    for i in range(0,len(filtered_h)-1):         
-        h=filtered_h[i]
-        pt1 = [int(h[1]-1000*h[0]),int(h[2]-1000/h[0])]
-        pt2 = [int(h[1]+1000*h[0]),int(h[2]+1000/h[0])]
+    for i in range(len(l_h)-1):         
+        h=l_h[i]
+        if h[0]>0:
+            pt1 = [int(h[1]-1000*h[0]),int(h[2]-1000)]
+            pt2 = [int(h[1]+1000*h[0]),int(h[2]+1000)]
+        else:
+            pt1 = [int(h[1]-1000*h[0]),int(h[2]-1000)]
+            pt2 = [int(h[1]+1000*h[0]),int(h[2]+1000)]
         #add lines to the cdstP image
-        cv.line(cdstP, pt1, pt2, (0,255,0), 1, cv.LINE_AA)
-                
+        cv.line(cdstP, pt1, pt2, (175,150,100), 1, cv.LINE_AA)
+    #filtered_h,l_h=[],[]            
     #same as above for the vertical lines
     l_v = sort_lines(l_v)
-    filtered_v = group_lines(l_v,1)
-    print(filtered_v)
-    for i in range(0,len(l_v)):
-        v=filtered_v[i]
-        pt1 = [int(v[1]-1000*v[0]),int(v[2]-1000/h[0])]
-        pt2 = [int(v[1]+1000*v[0]),int(v[2]+1000/h[0])]
+    #filtered_v = group_lines(l_v,1)
+    #print("verts: ",filtered_v)
+    for i in range(len(l_v)-1):
+        v=l_v[i]
+        dx=1000*v[0]
+
+        
+        if v[0] > 0:
+            pt1 = [int(v[1]-1000*v[0]),int(v[2]-1000)]
+            pt2 = [int(v[1]+1000*v[0]),int(v[2]+1000)]
+        else: 
+            pt1 = [int(v[1]+1000*v[0]),int(v[2]+1000)]
+            pt2 = [int(v[1]-1000*v[0]),int(v[2]-1000)]
+            
         #add lines to the cdstP image
-        cv.line(cdstP, pt1, pt2, (0,0,255), 1, cv.LINE_AA)
+        
+        cv.line(cdstP, pt1, pt2, (101,180,105), 1, cv.LINE_AA)
+        
+    #filtered_v,l_v=[],[]
     while True:
         
         cv.imshow('cdstP',cdstP)   
-
+  
         if cv.waitKey(1) == ord('q'):
             break        
 
