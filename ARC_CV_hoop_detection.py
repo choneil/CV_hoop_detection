@@ -11,7 +11,7 @@ height = int(vid.get(cv.CAP_PROP_FRAME_HEIGHT))
 
 #Variables to resize video frame with the correct ratio
 ratio = width/height
-new_h = 1080
+new_h = 720
 new_w = int(new_h*ratio) 
 
 while True:
@@ -133,10 +133,10 @@ while True:
     
     l_v=[max_v, min_v]
     
-    pt1 = line_intersection(((max_v[1],max_v[3]),(max_v[2],max_v[4])),((max_h[1],max_h[3]),(max_h[2],max_h[4])))
-    pt2 = line_intersection(((min_v[1],min_v[3]),(min_v[2],min_v[4])),((max_h[1],max_h[3]),(max_h[2],max_h[4])))
-    pt3 = line_intersection(((min_v[1],min_v[3]),(min_v[2],min_v[4])),((min_h[1],min_h[3]),(min_h[2],min_h[4]))) 
-    pt4 = line_intersection(((max_v[1],max_v[3]),(max_v[2],max_v[4])),((min_h[1],min_h[3]),(min_h[2],min_h[4])))
+    pt1 = line_intersection(((max_v[2],max_v[1]),(max_v[4],max_v[3])),((max_h[2],max_h[1]),(max_h[4],max_h[3])))
+    pt2 = line_intersection(((min_v[2],min_v[1]),(min_v[4],min_v[3])),((max_h[2],max_h[1]),(max_h[4],max_h[3])))
+    pt3 = line_intersection(((min_v[2],min_v[1]),(min_v[4],min_v[3])),((min_h[2],min_h[1]),(min_h[4],min_h[3]))) 
+    pt4 = line_intersection(((max_v[2],max_v[1]),(max_v[4],max_v[3])),((min_h[2],min_h[1]),(min_h[4],min_h[3])))
     cv.line(cdstP, pt1, pt2, (101,180,105), 3, cv.LINE_AA)
     cv.line(cdstP, pt2, pt3, (101,180,105), 3, cv.LINE_AA)
     cv.line(cdstP, pt3, pt4, (101,180,105), 3, cv.LINE_AA)
@@ -167,9 +167,6 @@ while True:
         if cv.waitKey(1) == ord('q'):
             break        
 
-vid.release()
-
-cv.destroyAllWindows
 vid.release()
 
 cv.destroyAllWindows
