@@ -121,12 +121,10 @@ while True:
 
     for i in range(len(l_h)):         
         h=l_h[i]
-        if h[0]>0:
-            pt1 = [int(h[1]-1000*h[0]),int(h[2]-1000)]
-            pt2 = [int(h[1]+1000*h[0]),int(h[2]+1000)]
-        else:
-            pt1 = [int(h[1]-1000*h[0]),int(h[2]-1000)]
-            pt2 = [int(h[1]+1000*h[0]),int(h[2]+1000)]
+        
+        pt1 = [int(h[1]-1000*h[0]),int(h[2]-1000)]
+        pt2 = [int(h[1]+1000*h[0]),int(h[2]+1000)]
+        
         #add lines to the cdstP image
         cv.line(cdstP, pt1, pt2, (175,150,100), 1, cv.LINE_AA)
 
@@ -147,15 +145,10 @@ while True:
     
     for i in range(len(l_v)):
         v=l_v[i]
-        dx=1000*v[0]
-
         
-        if v[0] > 0:
-            pt1 = [int(v[1]-1000*v[0]),int(v[2]-1000)]
-            pt2 = [int(v[1]+1000*v[0]),int(v[2]+1000)]
-        else: 
-            pt1 = [int(v[1]+1000*v[0]),int(v[2]+1000)]
-            pt2 = [int(v[1]-1000*v[0]),int(v[2]-1000)]
+        pt1 = [int(v[1]-1000*v[0]),int(v[2]-1000)]
+        pt2 = [int(v[1]+1000*v[0]),int(v[2]+1000)]
+         
             
         
         cv.line(cdstP, pt1, pt2, (101,180,105), 1, cv.LINE_AA)
