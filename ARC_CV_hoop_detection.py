@@ -1,9 +1,8 @@
 import cv2 as cv
 import numpy as np
 import math
-from sortlines import sort_lines
-from grouplines import group_lines
-
+from maxmin  import maxmin
+from points import line_intersection
 vid = cv.VideoCapture('IMG_3936.mov')
 
 #Dimensions of video frame
@@ -107,19 +106,20 @@ while True:
     #sort lines, horizontal lines
     #l_h = sort_lines(l_h)
     #filtered_h = group_lines(l_h,2)
-    for i in range(0,len(l_h)-1):         
-        h=l_h[i]
+    max_h, min_h=maxmin(l_h,2)
+    max_v, min_v=maxmin(l_v,2)
+    
+    cv.line(cdstP, (int(max_h[1]), int(max_h[2])), (int(max_h[3]), int(max_h[4])), (255,0,255), 1, cv.LINE_AA)
+    cv.line(cdstP, (int(min_h[1]), int(min_h[2])), (int(min_h[3]), int(min_h[4])), (255,0,255), 1, cv.LINE_AA)
+            
+    #for i in range(0,len(l_h)-1):         
+    #    h=l_h[i]
         
         #add lines to the cdstP image
-        cv.line(cdstP, (int(h[1]), int(h[2])), (int(h[3]), int(h[4])), (255,0,255), 1, cv.LINE_AA)
-           
-    #same as above for the vertical lines
-  
-    #for i in range(0,len(l_v)):
-        #v=l_v[i]
-        #cv.line(cdstP, (int(v[1]), int(v[2])), (int(v[3]), int(v[4])), (255,0,0), 1, cv.LINE_AA)
-   
-    for i in range(len(l_h)-1):         
+    #    cv.line(cdstP, (int(h[1]), int(h[2])), (int(h[3]), int(h[4])), (255,0,255), 1, cv.LINE_AA)
+    l_h=[max_h,min_h]     
+
+    for i in range(len(l_h)):         
         h=l_h[i]
         if h[0]>0:
             pt1 = [int(h[1]-1000*h[0]),int(h[2]-1000)]
@@ -129,12 +129,23 @@ while True:
             pt2 = [int(h[1]+1000*h[0]),int(h[2]+1000)]
         #add lines to the cdstP image
         cv.line(cdstP, pt1, pt2, (175,150,100), 1, cv.LINE_AA)
-    #filtered_h,l_h=[],[]            
-    #same as above for the vertical lines
-    l_v = sort_lines(l_v)
-    #filtered_v = group_lines(l_v,1)
-    #print("verts: ",filtered_v)
-    for i in range(len(l_v)-1):
+
+    
+    l_v=[max_v, min_v]
+    
+    pt1 = line_intersection(((max_v[1],max_v[3]),(max_v[2],max_v[4])),((max_h[1],max_h[3]),(max_h[2],max_h[4])))
+    pt2 = line_intersection(((min_v[1],min_v[3]),(min_v[2],min_v[4])),((max_h[1],max_h[3]),(max_h[2],max_h[4])))
+    pt3 = line_intersection(((min_v[1],min_v[3]),(min_v[2],min_v[4])),((min_h[1],min_h[3]),(min_h[2],min_h[4]))) 
+    pt4 = line_intersection(((max_v[1],max_v[3]),(max_v[2],max_v[4])),((min_h[1],min_h[3]),(min_h[2],min_h[4])))
+    cv.line(cdstP, pt1, pt2, (101,180,105), 3, cv.LINE_AA)
+    cv.line(cdstP, pt2, pt3, (101,180,105), 3, cv.LINE_AA)
+    cv.line(cdstP, pt3, pt4, (101,180,105), 3, cv.LINE_AA)
+    cv.line(cdstP, pt4, pt1, (101,180,105), 3, cv.LINE_AA)
+
+
+    print(pt1,pt2,pt3,pt4)
+    
+    for i in range(len(l_v)):
         v=l_v[i]
         dx=1000*v[0]
 
@@ -146,11 +157,9 @@ while True:
             pt1 = [int(v[1]+1000*v[0]),int(v[2]+1000)]
             pt2 = [int(v[1]-1000*v[0]),int(v[2]-1000)]
             
-        #add lines to the cdstP image
         
         cv.line(cdstP, pt1, pt2, (101,180,105), 1, cv.LINE_AA)
-        
-    #filtered_v,l_v=[],[]
+    
     while True:
         
         cv.imshow('cdstP',cdstP)   
@@ -158,6 +167,9 @@ while True:
         if cv.waitKey(1) == ord('q'):
             break        
 
+vid.release()
+
+cv.destroyAllWindows
 vid.release()
 
 cv.destroyAllWindows
