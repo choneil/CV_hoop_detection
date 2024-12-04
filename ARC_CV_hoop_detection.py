@@ -4,7 +4,7 @@ import math
 from maxmin  import maxmin
 from points import line_intersection
 vid = cv.VideoCapture('IMG_3936.mov')
-
+frame_no=0
 #Dimensions of video frame
 width = int(vid.get(cv.CAP_PROP_FRAME_WIDTH))
 height = int(vid.get(cv.CAP_PROP_FRAME_HEIGHT))
@@ -28,14 +28,14 @@ while True:
     gray = cv.cvtColor(small_frame, cv.COLOR_BGR2GRAY)
 
     #Lower span of red in HSV coordinates
-    lower_red1 = np.array([0,100,150])
+    lower_red1 = np.array([0,50,160])
     upper_red1 = np.array([15,255,255])
 
     #Mask the Lower span of red in the frame. All masked pixels will be white while others are black
     mask1 = cv.inRange(hsv, lower_red1, upper_red1)
 
     #Upper span of red in HSV coordinates
-    lower_red2 = np.array([170,100,150])
+    lower_red2 = np.array([170,50,160])
     upper_red2 = np.array([180,255,255])
 
     #Mask the upper span of red in the frame. All masked pixels will be white while others are black
@@ -152,11 +152,14 @@ while True:
             
         
         cv.line(cdstP, pt1, pt2, (101,180,105), 1, cv.LINE_AA)
-    
+    print(frame_no)
+    frame_no =(frame_no +1)
     while True:
         
+        cv.imshow('mask', mask_all)
         cv.imshow('cdstP',cdstP)   
-  
+        cv.imshow('smallframe', small_frame)   
+        
         if cv.waitKey(1) == ord('q'):
             break        
 
