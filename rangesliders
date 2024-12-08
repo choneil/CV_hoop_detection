@@ -1,254 +1,154 @@
 import cv2 as cv
 import numpy as np
-import math
-from maxmin  import maxmin
-from points import line_intersection
-vid = cv.VideoCapture('Hoop Detection\Hoop_vid.mov')
-frame_no=0
-#Dimensions of video frame
+
+vid = cv.VideoCapture('Hoop Detection/Hoop_vid.mov')  # Use forward slashes for file paths
+frame_no = 0
+
+# Dimensions of video frame
 width = int(vid.get(cv.CAP_PROP_FRAME_WIDTH))
 height = int(vid.get(cv.CAP_PROP_FRAME_HEIGHT))
 font = cv.FONT_HERSHEY_SIMPLEX
 
-#Variables to resize video frame with the correct ratio
-ratio = width/height
-new_h = 720
-new_w = int(new_h*ratio) 
+hsv_data = {
+    "Red1": [[0, 145, 145], [15, 255, 255]],
+    "Red2": [[170, 90, 77], [180, 255, 255]],
+    "Blue": [[95, 150, 172], [140, 255, 255]],
+}
+adjustments = {
+    "Blur": [9,15,0],#kernel, sigmaX, sixmaY
+    'Thresh': [150, 255]#lower, upper
+}
 
 def nada(x):
-    pass
-cv.namedWindow('HSV Sliders')
+    pass  # Callback for trackbars (does nothing)
 
-cv.createTrackbar('Hue1a', 'HSV Sliders', 0,180,nada)
-cv.createTrackbar('Sat1a', 'HSV Sliders', 50,255,nada)
-cv.createTrackbar('Val1a', 'HSV Sliders', 172,255,nada)
+# Create the adjustment window
+cv.namedWindow('Adjustments')
+cv.resizeWindow('Adjustments',400,1000)
+# Create trackbars for adjustments
+cv.createTrackbar("Blur Kernel",'Adjustments',9,11,nada)
+cv.createTrackbar('Blur sigmaX','Adjustments',15,100,nada)
+cv.createTrackbar('Blur sigmaY','Adjustments',0,100,nada)
 
-cv.createTrackbar('Hue1b', 'HSV Sliders', 15,180,nada)
-cv.createTrackbar('Sat1b', 'HSV Sliders', 255,255,nada)
-cv.createTrackbar('Val1b', 'HSV Sliders', 255,255,nada)
+cv.createTrackbar('Thresh Lower','Adjustments',150,255,nada)
+cv.createTrackbar('Thresh Upper','Adjustments',255,255,nada)
+# Create trackbars for each color
+for color_name, (lower, upper) in hsv_data.items():
+    cv.createTrackbar(f"{color_name} H Min", 'Adjustments', lower[0], 180, nada)
+    cv.createTrackbar(f"{color_name} H Max", 'Adjustments', upper[0], 180, nada)
+    cv.createTrackbar(f"{color_name} S Min", 'Adjustments', lower[1], 255, nada)
+    cv.createTrackbar(f"{color_name} S Max", 'Adjustments', upper[1], 255, nada)
+    cv.createTrackbar(f"{color_name} V Min", 'Adjustments', lower[2], 255, nada)
+    cv.createTrackbar(f"{color_name} V Max", 'Adjustments', upper[2], 255, nada)
 
-cv.createTrackbar('Hue2a', 'HSV Sliders', 170,180,nada)
-cv.createTrackbar('Sat2a', 'HSV Sliders', 150,255,nada)
-cv.createTrackbar('Val2a', 'HSV Sliders', 172,255,nada)
+def get_trackbar_positions():
+    lower_bounds = {}
+    upper_bounds = {}
+    for color_name in hsv_data.keys():
+        h_min = cv.getTrackbarPos(f"{color_name} H Min", 'Adjustments')
+        h_max = cv.getTrackbarPos(f"{color_name} H Max", 'Adjustments')
+        s_min = cv.getTrackbarPos(f"{color_name} S Min", 'Adjustments')
+        s_max = cv.getTrackbarPos(f"{color_name} S Max", 'Adjustments')
+        v_min = cv.getTrackbarPos(f"{color_name} V Min", 'Adjustments')
+        v_max = cv.getTrackbarPos(f"{color_name} V Max", 'Adjustments')
+        
+        lower_bounds[color_name] = [h_min, s_min, v_min]
+        upper_bounds[color_name] = [h_max, s_max, v_max]  
+    return lower_bounds, upper_bounds
 
-cv.createTrackbar('Hue2b', 'HSV Sliders', 180,180,nada)
-cv.createTrackbar('Sat2b', 'HSV Sliders', 255,255,nada)
-cv.createTrackbar('Val2b', 'HSV Sliders', 255,255,nada)
+# Variables to resize video frame with the correct ratio
+ratio = width / height
+new_h = 540
+new_w = int(new_h * ratio) 
+
 while True:
-    h1=    cv.getTrackbarPos('Hue1a', 'HSV Sliders')
-    s1=    cv.getTrackbarPos('Sat1a', 'HSV Sliders')
-    v1=    cv.getTrackbarPos('Val1a', 'HSV Sliders')
-
-    h1b=    cv.getTrackbarPos('Hue1b', 'HSV Sliders')
-    s1b=    cv.getTrackbarPos('Sat1b', 'HSV Sliders')
-    v1b=    cv.getTrackbarPos('Val1b', 'HSV Sliders')
-    
-    h2=    cv.getTrackbarPos('Hue2a', 'HSV Sliders')
-    s2=    cv.getTrackbarPos('Sat2a', 'HSV Sliders')
-    v2=    cv.getTrackbarPos('Val2a', 'HSV Sliders')
-
-    h2b=    cv.getTrackbarPos('Hue2b', 'HSV Sliders')
-    s2b=    cv.getTrackbarPos('Sat2b', 'HSV Sliders')
-    v2b=    cv.getTrackbarPos('Val2b', 'HSV Sliders')
+    kernell = (cv.getTrackbarPos('Blur Kernel','Adjustments'),cv.getTrackbarPos('Blur Kernel','Adjustments'))
+    blurx = cv.getTrackbarPos('Blur sigmaX','Adjustments')
+    blury = cv.getTrackbarPos('Blur sigmaY','Adjustments')
+    threshl = cv.getTrackbarPos('Thresh Lower','Adjustments')
+    threshu = cv.getTrackbarPos('Thresh Upper','Adjustments')
+    lower, upper = get_trackbar_positions()
     ret, frame = vid.read()
     
-    #Resize frame while maintaining ratio
-    small_frame = cv.resize(frame,(new_w,new_h))
-    #Convert color to HSV 
+    if not ret:  # Check if the frame is successfully read
+        print("Failed to read frame, stopping.")
+        break
+
+    if frame is None:  # Check if frame is None
+        print("Error: No frame to process.")
+        break
+
+    # Resize frame while maintaining ratio
+    small_frame = cv.resize(frame, (new_w, new_h))
+    
+    # Convert color to HSV 
     hsv = cv.cvtColor(small_frame, cv.COLOR_BGR2HSV)
-
-    #Convert to grayscale
     gray = cv.cvtColor(small_frame, cv.COLOR_BGR2GRAY)
+    # Create masks for the different HSV color ranges
+    mask1 = cv.inRange(hsv, 
+                       np.array([lower["Red1"][0], lower["Red1"][1], lower["Red1"][2]]),
+                       np.array([upper["Red1"][0], upper["Red1"][1], upper["Red1"][2]]))
 
-    #Lower span of red in HSV coordinates
-    #lower_red1 = np.array([0,50,172])
-    #upper_red1 = np.array([15,255,255])
-    lower_red1 = np.array([h1,s1,v1])
-    upper_red1 = np.array([h1b,s1b,v1b])
+    mask2 = cv.inRange(hsv, 
+                       np.array([lower["Red2"][0], lower["Red2"][1], lower["Red2"][2]]),
+                       np.array([upper["Red2"][0], upper["Red2"][1], upper["Red2"][2]]))
     
-    lower_red2 = np.array([h2b,s2b,v2b])
-    upper_red2 = np.array([h2,s2,v2])
+    mask3 = cv.inRange(hsv, 
+                       np.array([lower["Blue"][0], lower["Blue"][1], lower["Blue"][2]]),
+                       np.array([upper["Blue"][0], upper["Blue"][1], upper["Blue"][2]]))
+
+    # Combine the lower and upper red masks
+    red_mask = mask1 + mask2
+    blue_mask = mask3
+    mask_all = red_mask+blue_mask
+    # Create blank BGR images for the masks
+    red_overlay = np.zeros_like(small_frame)
+    blue_overlay = np.zeros_like(small_frame)
+
+    # Apply red color to red_mask areas
+    red_overlay[red_mask > 0] = [0, 0, 255]  # Red color (BGR format)
+
+    # Apply blue color to blue_mask areas
+    blue_overlay[blue_mask > 0] = [255, 0, 0]  # Blue color (BGR format)
+
+    # Combine the red and blue overlays
+    colored_mask = cv.addWeighted(red_overlay, 1.0, blue_overlay, 1.0, 0)
+
+    # Convert grayscale image to BGR for overlay
+    image_bgr = cv.cvtColor(gray, cv.COLOR_GRAY2BGR)
+
+    # Blend the colored mask with the grayscale image
+    blended = cv.addWeighted(image_bgr, 0.7, colored_mask, 0.3, 0)
+    kernel = cv.getStructuringElement(cv.MORPH_RECT, kernell)
+    mask_all = cv.morphologyEx(mask_all, cv.MORPH_OPEN, kernel)
+    mask_all = cv.morphologyEx(mask_all, cv.MORPH_DILATE, kernel)
+
+
     
-    hsv_image1 = np.zeros((300, 300, 3), np.uint8)
-    hsv_image1[:, :] = lower_red1
-    hsv_image1b = np.zeros((300, 300, 3), np.uint8)
-    hsv_image1b[:, :] = upper_red1
 
-    hsv_image2 = np.zeros((300, 300, 3), np.uint8)
-    hsv_image2[:, :] = lower_red2
-    hsv_image2b = np.zeros((300, 300, 3), np.uint8)
-    hsv_image2b[:, :] = lower_red2
-    # Convert the HSV image to BGR (for display)
-    bgr_image1 = cv.cvtColor(hsv_image1, cv.COLOR_HSV2BGR)
-    bgr_image1b = cv.cvtColor(hsv_image1b, cv.COLOR_HSV2BGR)
-    bgr_image2 = cv.cvtColor(hsv_image2, cv.COLOR_HSV2BGR)
-    bgr_image2b = cv.cvtColor(hsv_image2b, cv.COLOR_HSV2BGR)
-    # Create a black background to overlay trackbar text
-    overlay1 = np.zeros_like(bgr_image1)
-    overlay1b = np.zeros_like(bgr_image1b)
-    overlay2 = np.zeros_like(bgr_image2)
-    overlay2b = np.zeros_like(bgr_image2b)
-    # Add readable text on the overlay showing the current values of H, S, and V
-    font = cv.FONT_HERSHEY_SIMPLEX
-    cv.putText(overlay1, f'Hue: {h1}', (10, 30), font, 0.8, (255, 255, 255), 2, cv.LINE_AA)
-    cv.putText(overlay1, f'Sat: {s1}', (10, 60), font, 0.8, (255, 255, 255), 2, cv.LINE_AA)
-    cv.putText(overlay1, f'Val: {v1}', (10, 90), font, 0.8, (255, 255, 255), 2, cv.LINE_AA)
 
-    cv.putText(overlay1b, f'Hue: {h1b}', (10, 30), font, 0.8, (255, 255, 255), 2, cv.LINE_AA)
-    cv.putText(overlay1b, f'Sat: {s1b}', (10, 60), font, 0.8, (255, 255, 255), 2, cv.LINE_AA)
-    cv.putText(overlay1b, f'Val: {v1b}', (10, 90), font, 0.8, (255, 255, 255), 2, cv.LINE_AA)
 
-    cv.putText(overlay2, f'Hue: {h2}', (10, 30), font, 0.8, (255, 255, 255), 2, cv.LINE_AA)
-    cv.putText(overlay2, f'Sat: {s2}', (10, 60), font, 0.8, (255, 255, 255), 2, cv.LINE_AA)
-    cv.putText(overlay2, f'Val: {v2}', (10, 90), font, 0.8, (255, 255, 255), 2, cv.LINE_AA)
-
-    cv.putText(overlay2b, f'Hue: {h2b}', (10, 30), font, 0.8, (255, 255, 255), 2, cv.LINE_AA)
-    cv.putText(overlay2b, f'Sat: {s2b}', (10, 60), font, 0.8, (255, 255, 255), 2, cv.LINE_AA)
-    cv.putText(overlay2b, f'Val: {v2b}', (10, 90), font, 0.8, (255, 255, 255), 2, cv.LINE_AA)
-    # Combine the original image with the overlay text
-    result_image1 = cv.addWeighted(bgr_image1, 1, overlay1, 0.3, 0)
-    result_image1b = cv.addWeighted(bgr_image1b, 1, overlay1b, 0.3, 0)
-    result_image2 = cv.addWeighted(bgr_image2, 1, overlay2, 0.3, 0)
-    result_image2b = cv.addWeighted(bgr_image2b, 1, overlay2b, 0.3, 0)
-    # Show the image with the selected HSV values
-    result_image1b = cv.resize(result_image1b, (result_image1.shape[1], result_image1b.shape[0]))
-    result_image2 = cv.resize(result_image2, (result_image1.shape[1], result_image2.shape[0]))
-    result_image2b = cv.resize(result_image2b, (result_image1.shape[1], result_image2b.shape[0]))
-    
-    final_image = cv.vconcat([result_image1,result_image1b,result_image2,result_image2])
-    cv.imshow('ranges', final_image)
-    
-    #Mask the Lower span of red in the frame. All masked pixels will be white while others are black
-    mask1 = cv.inRange(hsv, lower_red1, upper_red1)
-
-    #Upper span of red in HSV coordinates
-    #lower_red2 = np.array([170,150,172])
-    
-    #Mask the upper span of red in the frame. All masked pixels will be white while others are black
-    mask2 = cv.inRange(hsv, lower_red2, upper_red2)
-
-    #Combine the lower and upper red masks
-    mask_all = mask1 + mask2
-
-    #Morphology using the combined mask as the source parameter, and (7,7) as the kernel
-    #Explanation of Morphology commands(OPEN, DILATE, etc.) in [1]
-    mask_all = cv.morphologyEx(mask_all, cv.MORPH_OPEN, np.ones((7,7),np.uint8))
-    mask_all = cv.morphologyEx(mask_all, cv.MORPH_DILATE, np.ones((7,7),np.uint8))
-    
-    #More filters to try to hone in on straight lines
-    thresh = cv.threshold(mask_all, 150, 255, cv.THRESH_BINARY)[1]
-    blur = cv.GaussianBlur(thresh,(9,9),15,None,0)
-    kernel = cv.getStructuringElement(cv.MORPH_RECT, (9,9))
+    # Apply edge detection
+    thresh = cv.threshold(mask_all, threshl,threshu, cv.THRESH_BINARY)[1]
+    blur = cv.GaussianBlur(thresh, kernell, blurx, None, blury)
     dilate = cv.morphologyEx(blur, cv.MORPH_DILATE, kernel)
-    
-    # get absolute difference between dilate and the blurred threshold
-    # got better results for my lines doing this rather than just the threshold
     diff = cv.absdiff(dilate, blur)
-
-    #invert diff
     edges = 255 - diff
-
-    #canny edges of the diff 
-    can = cv.Canny(diff,100,255,None,3,False)
-
-    #convert the inverted diff to 'color'
-    can_c = cv.cvtColor(edges, cv.COLOR_GRAY2BGR)
-    
-    #canny edges of the blur
-    dst = cv.Canny(blur, 10, 200, None, 3)
-    
+    can = cv.Canny(diff, 100, 255, None, 3, False)
     cdstP = cv.cvtColor(can, cv.COLOR_GRAY2BGR)
-    
-    #using predicted hough lines here because it seemed like the results were more useful for what I was trying to do
-    #it was giving more results we could at least filter down to something close to accurate    
-    linesP = cv.HoughLinesP(can, 1, np.pi / 180, 50, None, 150, 20)
-    
-    #create an empty array for horizontal both horizontal and vertical lines
-    l_h=[]
-    l_v=[]
-
-    
-    if linesP is not None:
-        for i in range(0, len(linesP)):
-
-
-            l = linesP[i][0]
-            
-            dxdy =(l[2]-l[0])/(l[3]-l[1]+.001)
-            dydx =(l[3]-l[1])/(l[2]-l[0]+.001)
-            #multidimensional array new_l with dxdy defined by x2-x1/y2-y1. .001 added to denominator to prevent division by zero
-            #will clean up some of the slop like that .001 as we go
-            
-
-            #append line into appropriate array
-            if abs(dxdy)>1:
-                new_l=[dxdy,l[0],l[1],l[2],l[3]]
-                l_h.append(new_l)
-            else:
-                new_l=[dxdy,l[0],l[1],l[2],l[3]]
-                l_v.append(new_l)
-    
-    #sort lines function returns the lines array sent as [[slope],[x1,y1,x2,y2]] sorted in ascending order along the absolute value of the slope.
-    #sort lines, horizontal lines
-    #l_h = sort_lines(l_h)
-    #filtered_h = group_lines(l_h,2)
-    max_h, min_h=maxmin(l_h,2)
-    max_v, min_v=maxmin(l_v,2)
-    
-    cv.line(cdstP, (int(max_h[1]), int(max_h[2])), (int(max_h[3]), int(max_h[4])), (255,0,255), 1, cv.LINE_AA)
-    cv.line(cdstP, (int(min_h[1]), int(min_h[2])), (int(min_h[3]), int(min_h[4])), (255,0,255), 1, cv.LINE_AA)
-            
-    #for i in range(0,len(l_h)-1):         
-    #    h=l_h[i]
-        
-        #add lines to the cdstP image
-    #    cv.line(cdstP, (int(h[1]), int(h[2])), (int(h[3]), int(h[4])), (255,0,255), 1, cv.LINE_AA)
-    l_h=[max_h,min_h]     
-
-    for i in range(len(l_h)):         
-        h=l_h[i]
-        
-        pt1 = [int(h[1]-1000*h[0]),int(h[2]-1000)]
-        pt2 = [int(h[1]+1000*h[0]),int(h[2]+1000)]
-        
-        #add lines to the cdstP image
-        cv.line(cdstP, pt1, pt2, (175,150,100), 1, cv.LINE_AA)
-
-    
-    l_v=[max_v, min_v]
-    
-    pt1 = line_intersection(((max_v[2],max_v[1]),(max_v[4],max_v[3])),((max_h[2],max_h[1]),(max_h[4],max_h[3])))
-    pt2 = line_intersection(((min_v[2],min_v[1]),(min_v[4],min_v[3])),((max_h[2],max_h[1]),(max_h[4],max_h[3])))
-    pt3 = line_intersection(((min_v[2],min_v[1]),(min_v[4],min_v[3])),((min_h[2],min_h[1]),(min_h[4],min_h[3]))) 
-    pt4 = line_intersection(((max_v[2],max_v[1]),(max_v[4],max_v[3])),((min_h[2],min_h[1]),(min_h[4],min_h[3])))
-    cv.line(cdstP, pt1, pt2, (101,180,105), 3, cv.LINE_AA)
-    cv.line(cdstP, pt2, pt3, (101,180,105), 3, cv.LINE_AA)
-    cv.line(cdstP, pt3, pt4, (101,180,105), 3, cv.LINE_AA)
-    cv.line(cdstP, pt4, pt1, (101,180,105), 3, cv.LINE_AA)
-
-
-    print(pt1,pt2,pt3,pt4)
-    
-    for i in range(len(l_v)):
-        v=l_v[i]
-        
-        pt1 = [int(v[1]-1000*v[0]),int(v[2]-1000)]
-        pt2 = [int(v[1]+1000*v[0]),int(v[2]+1000)]
-         
-            
-        
-        cv.line(cdstP, pt1, pt2, (101,180,105), 1, cv.LINE_AA)
     print(frame_no)
-    frame_no =(frame_no +1)
+    frame_no += 1
     while True:
+    # Show the frames and masks
         
+
         cv.imshow('mask', mask_all)
-        cv.imshow('cdstP',cdstP)   
-        cv.imshow('smallframe', small_frame)   
-        
+        cv.imshow('blur', blur)
+        cv.imshow('thresh',colored_mask)
+        cv.imshow('smallframe', small_frame)
+
         if cv.waitKey(1) == ord('q'):
-            break        
+            break
 
 vid.release()
-
-cv.destroyAllWindows
+cv.destroyAllWindows()
